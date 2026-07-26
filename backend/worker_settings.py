@@ -5,7 +5,7 @@ ARQ Worker Settings
 
 from arq.connections import RedisSettings
 
-from core.config import settings
+from backend.app.core.config import settings
 
 
 async def startup(ctx):

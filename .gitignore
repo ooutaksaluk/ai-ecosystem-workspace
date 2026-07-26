@@ -20,3 +20,14 @@ wheels/
 
 # Docker logs
 *.log
+logs/
+
+# MinIO / Docker volume data 
+minio_data/
+.mc/
+
+# Test/sample artifacts 
+*.jpg
+*.png
+!docs/screenshots/*.png
+!docs/screenshots/*.jpg
