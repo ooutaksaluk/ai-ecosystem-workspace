@@ -1,6 +1,6 @@
 from label_studio_sdk import LabelStudio
 
-from backend.app.core.config import settings
+from app.core.config import settings
 
 
 def get_client() -> LabelStudio:

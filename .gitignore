@@ -31,3 +31,5 @@ minio_data/
 *.png
 !docs/screenshots/*.png
 !docs/screenshots/*.jpg
+
+sandbox/

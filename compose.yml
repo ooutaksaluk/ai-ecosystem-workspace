@@ -18,8 +18,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "16m"
+        max-file: "10"
 
   postgres:
     image: postgres:16-alpine
@@ -41,8 +41,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "16m"
+        max-file: "10"
 
   label-studio:
     image: heartexlabs/label-studio:latest
@@ -51,8 +51,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "16m"
+        max-file: "10"
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,8 +92,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
-        max-file: "3"
+        max-size: "16m"
+        max-file: "10"
   backend:
     build: ./backend
     container_name: backend
@@ -116,7 +116,7 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "10m"
+        max-size: "16m"
         max-file: "10"
 
 volumes:
