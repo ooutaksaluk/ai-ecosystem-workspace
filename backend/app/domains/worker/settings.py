@@ -2,11 +2,13 @@
 ARQ Worker Settings
 รัน worker: uv run arq worker_settings.WorkerSettings
 """
-
+import redis
+from rq import Queue
 from arq.connections import RedisSettings
+from app.core.config import settings
 
-from backend.app.core.config import settings
-
+redis_conn = redis.Redis.from_url(settings.REDIS_URL)
+task_queue = Queue("default", connection=redis_conn)
 
 async def startup(ctx):
     print(f"Worker starting up... connected to {settings.REDIS_URL}")

@@ -1,1 +1,2 @@
+โปรเจคนี้ออกแบบโดยใช้แนวคิด Domain-Driven Structure ซึ่งแบ่งโค้ดออกเป็น 2 ส่วนหลัก คือ core (โครงสร้างพื้นฐานที่ใช้ร่วมกันทั้งระบบ) และ domains (แต่ละฟีเจอร์/ธุรกิจย่อยของระบบ)
 https://github.com/ooutaksaluk/ai-ecosystem-workspace
