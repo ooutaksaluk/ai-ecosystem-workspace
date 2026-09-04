@@ -1,0 +1,19 @@
+# --- Queue & Storage ---
+--extra-index-url https://download.pytorch.org/whl/cu117
+redis==5.0.8
+minio==7.2.9
+
+# --- ML / Training (Token Classification) ---
+torch==2.0.1+cu117
+transformers==4.44.2
+datasets==2.21.0
+accelerate==0.34.2
+evaluate==0.4.3
+seqeval==1.2.2          # Metrics for NER/token classification
+pyarrow==17.0.0          # Required for parquet dataset operations
+
+# --- Utility ---
+python-dotenv==1.0.1
+numpy==1.24.3
+scikit-learn==1.5.1
+tqdm==4.66.5
