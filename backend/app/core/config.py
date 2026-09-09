@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
 
+    # --- MLflow ---
+    MLFLOW_TRACKING_URI: str = "http://mlflow:5000"
+    MLFLOW_EXPERIMENT_NAME: str = "text-classification"
+
     @property
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"

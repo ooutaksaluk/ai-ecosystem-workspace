@@ -4,7 +4,7 @@ import redis.asyncio as redis
 
 from app.domains.training.schemas import TrainQueueRequest, TrainQueueResponse
 from app.domains.training.service import TrainingService
-from app.core.redis_client import get_redis_client   # dependency ที่มีอยู่แล้วในโปรเจกต์
+from app.core.cache import get_redis_client
 
 router = APIRouter(prefix="/train", tags=["Training"])
 

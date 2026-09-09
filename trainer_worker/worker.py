@@ -4,6 +4,8 @@ import os
 import tempfile
 import time
 from datetime import datetime
+import mlflow
+from mlflow.tracking import MlflowClient
 from datasets import load_from_disk
 from minio import Minio
 import numpy as np
@@ -17,11 +19,15 @@ from transformers import (
 )
 from logger_setup import setup_logger
 
-r = redis.Redis(host="redis", port=6379, decode_responses=True)
+r = redis.Redis(
+    host=os.environ.get("REDIS_HOST", "localhost"),
+    port=int(os.environ.get("REDIS_PORT", "6379")),
+    decode_responses=True,
+)
 minio_client = Minio(
-    "minio:9000",
-    access_key=os.environ["MINIO_ROOT_USER"],
-    secret_key=os.environ["MINIO_ROOT_PASSWORD"],
+    os.environ.get("MINIO_ENDPOINT", "localhost:9000"),
+    access_key=os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
+    secret_key=os.environ.get("MINIO_SECRET_KEY", "wlul0abwlu123"),
     secure=False,
 )
 
@@ -132,6 +138,38 @@ def run_training(job):
 
         logger.info("เริ่มเทรนโมเดล...")
         trainer.train()
+
+        mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000"))
+        mlflow.set_experiment(os.environ.get("MLFLOW_EXPERIMENT_NAME", "text-classification"))
+        with mlflow.start_run(run_name=job["job_id"]) as run:
+            mlflow.log_params({
+                "base_model": model_name,
+                "epochs": int(job["epochs"]),
+                "batch_size": int(job.get("batch_size", 8)),
+                "job_id": job["job_id"],
+            })
+            metrics = trainer.evaluate()
+            mlflow.log_metrics({
+                key: float(value)
+                for key, value in metrics.items()
+                if isinstance(value, (int, float))
+            })
+            registered_name = f"text-classifier-{job['job_id']}"
+            mlflow.transformers.log_model(
+                transformers_model={"model": model, "tokenizer": tokenizer},
+                artifact_path="model",
+                task="text-classification",
+                registered_model_name=registered_name,
+            )
+            model_version = MlflowClient().get_latest_versions(
+                registered_name, stages=["None"]
+            )[0].version
+            model_uri = f"models:/{registered_name}/{model_version}"
+        r.hset(
+            f"job:{job['job_id']}",
+            mapping={"status": "done", "model_name": registered_name, "model_uri": model_uri},
+        )
+        logger.info(f"ลงทะเบียนโมเดลใน MLflow สำเร็จ: {model_uri}")
 
         logger.info("เทรนเสร็จสิ้น กำลังอัปโหลดโมเดลไปที่ MinIO...")
         model_path = upload_to_minio(model, job["job_id"])

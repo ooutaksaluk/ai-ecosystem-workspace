@@ -15,6 +15,7 @@ class JobStatus(str, Enum):
 
 class TrainQueueRequest(BaseModel):
     dataset_name: str = Field(..., example="conll2003")
+    dataset_key: str = Field(..., example="conll2003")
     model_name: str = Field(..., example="bert-base-uncased")
     scheduled_time: datetime = Field(
         ..., 

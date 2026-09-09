@@ -8,6 +8,7 @@ from app.domains.worker.router import router as worker_router
 from app.domains.database.router import router as database_router
 from app.domains.cache.router import router as cache_router
 from app.domains.training.router import router as training_router
+from app.domains.inference.router import router as inference_router
 
 logger = get_logger(__name__)
 
@@ -23,6 +24,7 @@ app = FastAPI(
 )
 
 app.include_router(training_router)
+app.include_router(inference_router)
 app.include_router(worker_router)
 app.include_router(storage_router)
 app.include_router(labeling_router, prefix="/api/v1")

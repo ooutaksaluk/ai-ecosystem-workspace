@@ -94,6 +94,29 @@ services:
       options:
         max-size: "16m"
         max-file: "10"
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.2
+    container_name: mlflow
+    restart: unless-stopped
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: wlul0abwlu123
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root s3://models/mlflow-artifacts
+      --serve-artifacts
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
   backend:
     build:
       context: ./backend
@@ -101,6 +124,8 @@ services:
     container_name: fastapi-backend
     restart: unless-stopped
     working_dir: /app
+    env_file:
+    - ./backend/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -108,9 +133,12 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      mlflow:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://labelstudio:IadeIsJnbl0@postgres:5432/labelstudio
       REDIS_URL: redis://redis:6379/0
+      MLFLOW_TRACKING_URI: http://mlflow:5000
     ports:
       - "8000:8000"
     volumes:
@@ -130,6 +158,12 @@ services:
     depends_on:
       - redis
       - minio
+      - mlflow
+    environment:
+      REDIS_HOST: redis
+      MINIO_ENDPOINT: minio:9000
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT_NAME: text-classification
     deploy:
       resources:
         reservations:
@@ -140,8 +174,23 @@ services:
     volumes:
       - ./trainer_worker/logs:/app/logs
 
+  inference_worker:
+    build:
+      context: ./inference_worker
+      dockerfile: Dockerfile
+    container_name: inference-worker
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - mlflow
+    environment:
+      REDIS_HOST: redis
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+
+
 volumes:
   redis-data:
   postgresql-data:
   label-studio-data:
   minio-data:
+  mlflow-data:

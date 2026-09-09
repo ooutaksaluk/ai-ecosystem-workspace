@@ -1,0 +1,35 @@
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+# ML / Training
+mlflow==2.16.2
+torch==2.4.1
+transformers==4.44.2
+datasets==2.21.0
+accelerate==0.34.2
+evaluate==0.4.3
+seqeval==1.2.2
+pyarrow==17.0.0
+numpy==1.26.4
+scikit-learn==1.5.1
+tqdm==4.66.5
+
+# Queue & Storage
+redis==5.0.8
+rq==2.3.3
+arq==0.26.3
+minio==7.2.9
+
+# API & Configuration
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
+python-multipart==0.0.32
+
+# Database
+sqlalchemy==2.0.35
+psycopg[binary]==3.2.13
+
+# Label Studio
+label-studio-sdk
