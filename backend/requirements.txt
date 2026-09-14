@@ -9,3 +9,9 @@ rq>=2.3.3
 arq>=0.26.3
 python-multipart>=0.0.20
 label-studio-sdk>=1.0.8
+
+opentelemetry-sdk
+opentelemetry-exporter-otlp
+opentelemetry-instrumentation-fastapi      # เฉพาะ backend
+opentelemetry-instrumentation-logging
+opentelemetry-instrumentation-redis

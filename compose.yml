@@ -4,7 +4,7 @@ services:
     container_name: redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     command: >
@@ -26,15 +26,15 @@ services:
     container_name: postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: labelstudio
-      POSTGRES_USER: labelstudio
-      POSTGRES_PASSWORD: IadeIsJnbl0
+      POSTGRES_DB: ${POSTGRES_DB:-labelstudio}
+      POSTGRES_USER: ${POSTGRES_USER:-labelstudio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgresql-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U labelstudio -d labelstudio"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-labelstudio} -d ${POSTGRES_DB:-labelstudio}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,14 +60,14 @@ services:
         condition: service_healthy
     environment:
       DJANGO_DB: default
-      POSTGRE_NAME: labelstudio
-      POSTGRE_USER: labelstudio
-      POSTGRE_PASSWORD: IadeIsJnbl0
+      POSTGRE_NAME: ${POSTGRES_DB:-labelstudio}
+      POSTGRE_USER: ${POSTGRES_USER:-labelstudio}
+      POSTGRE_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRE_HOST: postgres
       POSTGRE_PORT: 5432
       REDIS_LOCATION: redis://redis:6379/1
     ports:
-      - "8080:8080"
+      - "${LABEL_STUDIO_PORT:-8080}:8080"
     volumes:
       - label-studio-data:/label-studio/data
 
@@ -76,11 +76,11 @@ services:
     container_name: minio
     restart: unless-stopped
     ports:
-      - "9000:9000"   # API port
-      - "9001:9001"   # Web Console port
+      - "${MINIO_API_PORT:-9000}:9000"   # API port
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"   # Web Console port
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: wlul0abwlu123
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
     volumes:
       - minio-data:/data
     command: server /data --console-address ":9001"
@@ -104,8 +104,8 @@ services:
         condition: service_healthy
     environment:
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      AWS_ACCESS_KEY_ID: minioadmin
-      AWS_SECRET_ACCESS_KEY: wlul0abwlu123
+      AWS_ACCESS_KEY_ID: ${MINIO_ACCESS_KEY:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_SECRET_KEY}
     command: >
       mlflow server
       --host 0.0.0.0
@@ -114,9 +114,10 @@ services:
       --default-artifact-root s3://models/mlflow-artifacts
       --serve-artifacts
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5000}:5000"
     volumes:
       - mlflow-data:/mlflow
+
   backend:
     build:
       context: ./backend
@@ -135,12 +136,16 @@ services:
         condition: service_healthy
       mlflow:
         condition: service_started
+      otel-collector:
+        condition: service_started
     environment:
-      DATABASE_URL: postgresql://labelstudio:IadeIsJnbl0@postgres:5432/labelstudio
+      DATABASE_URL: postgresql://${POSTGRES_USER:-labelstudio}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-labelstudio}
       REDIS_URL: redis://redis:6379/0
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: fastapi-backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend/logs:/app/logs     # ← เชื่อม log ออกมานอก container
     logging:
@@ -159,11 +164,14 @@ services:
       - redis
       - minio
       - mlflow
+      - otel-collector
     environment:
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio:9000
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      MLFLOW_EXPERIMENT_NAME: text-classification
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-text-classification}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: trainer-worker
     deploy:
       resources:
         reservations:
@@ -176,16 +184,85 @@ services:
 
   inference_worker:
     build:
-      context: ./inference_worker
-      dockerfile: Dockerfile
+      context: ./trainer_worker
+      dockerfile: inference_worker/Dockerfile
     container_name: inference-worker
     restart: unless-stopped
     depends_on:
       - redis
       - mlflow
+      - otel-collector
     environment:
       REDIS_HOST: redis
       MLFLOW_TRACKING_URI: http://mlflow:5000
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: inference-worker
+
+  # --- Observability stack ---
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./trainer_worker/inference_worker/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    depends_on:
+      - loki
+      - tempo
+    ports:
+      - "${OTEL_GRPC_PORT:-4317}:4317"   # OTLP gRPC (app SDKs send here)
+      - "${OTEL_HTTP_PORT:-4318}:4318"   # OTLP HTTP
+      - "8889:8889"                      # Prometheus scrape endpoint
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./trainer_worker/inference_worker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+  loki:
+    image: grafana/loki:3.2.0
+    container_name: loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki-config.yaml"]
+    volumes:
+      - ./trainer_worker/inference_worker/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./trainer_worker/inference_worker/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./trainer_worker/inference_worker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
 
 
 volumes:
@@ -194,3 +271,7 @@ volumes:
   label-studio-data:
   minio-data:
   mlflow-data:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  grafana-data:

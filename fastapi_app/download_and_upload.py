@@ -9,8 +9,8 @@ from minio import Minio
 def upload_dataset(dataset_name: str, dataset_key: str, config: str | None = None) -> str:
     client = Minio(
         os.getenv("MINIO_ENDPOINT", "localhost:9000"),
-        access_key=os.getenv("MINIO_ROOT_USER", "minioadmin"),
-        secret_key=os.getenv("MINIO_ROOT_PASSWORD", "wlul0abwlu123"),
+        access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
+        secret_key=os.getenv("MINIO_SECRET_KEY", "wlul0abwlu123"),
         secure=False,
     )
 

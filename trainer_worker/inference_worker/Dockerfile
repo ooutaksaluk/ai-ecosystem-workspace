@@ -5,6 +5,6 @@ RUN apt-get update && apt-get install -y python3.11 python3-pip && rm -rf /var/l
 WORKDIR /app
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
-COPY worker.py .
+COPY inference_worker/worker.py .
 
 CMD ["python3", "worker.py"]

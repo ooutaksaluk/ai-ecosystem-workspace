@@ -5,8 +5,8 @@ from minio import Minio
 # กำหนด Client การเชื่อมต่อ MinIO
 minio_client = Minio(
     os.getenv("MINIO_ENDPOINT", "minio:9000"),
-    access_key=os.getenv("MINIO_ROOT_USER", "minioadmin"),
-    secret_key=os.getenv("MINIO_ROOT_PASSWORD", "minioadmin"),
+    access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
+    secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
     secure=False,
 )
 
